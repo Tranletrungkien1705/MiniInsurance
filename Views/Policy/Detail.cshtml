@@ -1,0 +1,86 @@
+@model Policy
+@{
+    ViewData["Title"] = $"HĐ {Model.Code}";
+    var (stTxt, stCss) = Ui.Status(Model.Status);
+    bool active = Model.Status is not (PolicyStatus.Cancelled);
+}
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card mb-3"><div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5 class="fw-bold mb-1">@Model.Code <span class="badge bg-@stCss ms-1">@stTxt</span>@if (Model.IsExpiringSoon) { <span class="badge bg-warning text-dark ms-1">Sắp hết hạn</span> }</h5>
+                    <div class="text-muted small"><i class="bi bi-car-front me-1"></i>@Model.VehiclePlate · @(Model.VehicleModel ?? "") — <b>@Model.CustomerName</b> (@Model.CustomerPhone)</div>
+                    <div class="small mt-1">@Ui.Type(Model.Type) · @Model.Insurer.Name @if (Model.Insurer.Hotline != null) { <span class="text-muted">· @Model.Insurer.Hotline</span> }</div>
+                </div>
+            </div>
+            <div class="row g-2 mt-2 small">
+                <div class="col-4">Số tiền BH: <b>@Model.SumInsured.ToString("N0")đ</b></div>
+                <div class="col-4">Phí: <b>@Model.Premium.ToString("N0")đ</b></div>
+                <div class="col-4">Hiệu lực: <b>@Model.StartDate.ToString("dd/MM/yyyy") – @Model.EndDate.ToString("dd/MM/yyyy")</b></div>
+            </div>
+        </div></div>
+
+        <div class="card mb-3"><div class="card-body">
+            <h6 class="fw-bold mb-2"><i class="bi bi-receipt me-2"></i>Biên nhận thu phí (@Model.Paid.ToString("N0") / @Model.Premium.ToString("N0"))</h6>
+            <table class="table table-sm align-middle">
+                <tbody>
+                @foreach (var r in Model.Receipts.OrderByDescending(x => x.PaidAt))
+                { <tr><td class="small text-muted">@r.PaidAt.ToString("dd/MM/yyyy HH:mm")</td><td>@r.Method</td><td class="text-end fw-semibold">@r.Amount.ToString("N0")đ</td></tr> }
+                @if (Model.Receipts.Count == 0) { <tr><td colspan="3" class="text-muted small">Chưa thu phí.</td></tr> }
+                </tbody>
+            </table>
+            @if (active && Model.Status != PolicyStatus.Expired)
+            {
+                <form asp-action="AddReceipt" method="post" class="row g-2">
+                    @Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" />
+                    <div class="col-md-4"><input name="amount" type="number" step="10000" value="@(Model.Premium - Model.Paid)" class="form-control form-control-sm" placeholder="Số tiền" /></div>
+                    <div class="col-md-4"><select name="method" class="form-select form-select-sm"><option>Tiền mặt</option><option>Chuyển khoản</option><option>Thẻ</option></select></div>
+                    <div class="col-md-4"><button class="btn btn-sm btn-primary w-100">Ghi biên nhận</button></div>
+                </form>
+                @if (Model.Status == PolicyStatus.Quoted) { <div class="text-muted small mt-1">Đủ phí → hợp đồng tự chuyển <b>Hiệu lực</b>.</div> }
+            }
+        </div></div>
+
+        <div class="card"><div class="card-body">
+            <h6 class="fw-bold mb-2"><i class="bi bi-shield-exclamation me-2"></i>Yêu cầu bồi thường</h6>
+            @foreach (var c in Model.Claims.OrderByDescending(x => x.CreatedAt))
+            {
+                var (ct, ccss) = Ui.Claim(c.Status);
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><b>@c.Code</b> <span class="badge bg-@ccss ms-1">@ct</span>
+                            <div class="small text-muted">Sự cố @c.IncidentDate.ToString("dd/MM/yyyy") · @c.Description · YC @c.ClaimAmount.ToString("N0")đ</div>
+                        </div>
+                        <div class="d-flex gap-1">
+                            @if (c.Status == ClaimStatus.Filed) { <form asp-action="ClaimAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="claimId" value="@c.Id" /><input type="hidden" name="to" value="1" /><button class="btn btn-sm btn-primary">Duyệt</button></form>
+                                                                <form asp-action="ClaimAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="claimId" value="@c.Id" /><input type="hidden" name="to" value="2" /><button class="btn btn-sm btn-outline-danger">Từ chối</button></form> }
+                            @if (c.Status == ClaimStatus.Approved) { <form asp-action="ClaimAction" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="claimId" value="@c.Id" /><input type="hidden" name="to" value="3" /><button class="btn btn-sm btn-success">Chi trả</button></form> }
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (Model.Claims.Count == 0) { <div class="text-muted small mb-2">Chưa có yêu cầu bồi thường.</div> }
+            @if (Model.Status == PolicyStatus.Active)
+            {
+                <form asp-action="FileClaim" method="post" class="row g-2 mt-1">
+                    @Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" />
+                    <div class="col-md-3"><input name="incidentDate" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+                    <div class="col-md-5"><input name="description" class="form-control form-control-sm" placeholder="Mô tả sự cố" required /></div>
+                    <div class="col-md-3"><input name="claimAmount" type="number" step="100000" class="form-control form-control-sm" placeholder="Số tiền YC" /></div>
+                    <div class="col-md-1"><button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-plus"></i></button></div>
+                </form>
+            }
+        </div></div>
+    </div>
+
+    <div class="col-lg-4"><div class="card"><div class="card-body">
+        <h6 class="fw-bold mb-3">Thao tác</h6>
+        <a href="/api/policy?plate=@Model.VehiclePlate" target="_blank" class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-search me-1"></i>API tra cứu theo biển số</a>
+        @if (active && Model.Status != PolicyStatus.Expired)
+        {
+            <form asp-action="Cancel" method="post" onsubmit="return confirm('Hủy hợp đồng?')">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" />
+                <button class="btn btn-outline-danger w-100"><i class="bi bi-x-circle me-1"></i>Hủy hợp đồng</button></form>
+        }
+    </div></div></div>
+</div>

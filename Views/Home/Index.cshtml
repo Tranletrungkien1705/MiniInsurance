@@ -1,0 +1,25 @@
+@{ ViewData["Title"] = "Bảng điều khiển"; var d = (InsDash)ViewBag.Dash; }
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">HĐ hiệu lực</div><div class="stat-num text-success">@d.Active</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">Sắp hết hạn (30N)</div><div class="stat-num text-warning">@d.ExpiringSoon</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">Bồi thường mở</div><div class="stat-num">@d.OpenClaims</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">Phí thu tháng</div><div class="stat-num" style="font-size:18px">@d.PremiumMonth.ToString("N0")đ</div></div></div></div>
+</div>
+<div class="row g-3">
+    <div class="col-lg-7"><div class="card"><div class="card-body">
+        <h6 class="fw-bold mb-3">Hợp đồng theo loại</h6>
+        @foreach (var (t, c) in d.ByType)
+        {
+            var pct = d.Policies == 0 ? 0 : c * 100 / d.Policies;
+            <div class="mb-2"><div class="d-flex justify-content-between small"><span>@Ui.Type(t)</span><span class="text-muted">@c</span></div>
+                <div class="progress" style="height:7px"><div class="progress-bar bg-success" style="width:@pct%"></div></div></div>
+        }
+        @if (d.ByType.Count == 0) { <div class="text-muted">Chưa có hợp đồng.</div> }
+    </div></div></div>
+    <div class="col-lg-5"><div class="card"><div class="card-body">
+        <h6 class="fw-bold mb-2">Tác vụ</h6>
+        <a href="/Policy/Create" class="btn btn-primary w-100 mb-2"><i class="bi bi-plus-lg me-1"></i>Cấp hợp đồng BH</a>
+        <a href="/Policy?status=1" class="btn btn-outline-primary w-100 mb-2">HĐ đang hiệu lực</a>
+        <div class="text-muted small mt-2">API tra cứu: <code>GET /api/policy?plate=30A-123.45</code></div>
+    </div></div></div>
+</div>

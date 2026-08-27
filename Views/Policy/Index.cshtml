@@ -1,0 +1,34 @@
+@model List<Policy>
+@{ ViewData["Title"] = "Hợp đồng bảo hiểm"; var cur = (PolicyStatus?)ViewBag.Status; }
+<div class="card"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <form method="get" class="d-flex gap-2">
+            <input name="q" value="@ViewBag.Q" class="form-control form-control-sm" placeholder="Mã HĐ / biển số / KH..." style="max-width:220px" />
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:160px">
+                <option value="">— Mọi trạng thái —</option>
+                @foreach (PolicyStatus s in Enum.GetValues(typeof(PolicyStatus))) { <option value="@((int)s)" selected="@(cur==s)">@Ui.Status(s).text</option> }
+            </select>
+            <button class="btn btn-sm btn-primary">Lọc</button>
+        </form>
+        <a href="/Policy/Create" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Cấp HĐ</a>
+    </div>
+    <table class="table table-hover align-middle">
+        <thead><tr><th>Mã HĐ</th><th>Xe / KH</th><th>Loại</th><th>Công ty BH</th><th class="text-end">Phí</th><th>Hiệu lực đến</th><th>TT</th></tr></thead>
+        <tbody>
+        @foreach (var p in Model)
+        {
+            var (txt, css) = Ui.Status(p.Status);
+            <tr style="cursor:pointer" onclick="location.href='/Policy/Detail/@p.Id'">
+                <td class="fw-semibold">@p.Code</td>
+                <td>@p.VehiclePlate <span class="text-muted small">· @p.CustomerName</span></td>
+                <td class="small">@Ui.Type(p.Type)</td>
+                <td class="small text-muted">@p.Insurer.Name</td>
+                <td class="text-end">@p.Premium.ToString("N0")</td>
+                <td class="small @(p.IsExpiringSoon ? "text-warning fw-semibold" : "text-muted")">@p.EndDate.ToString("dd/MM/yyyy")@if (p.IsExpiringSoon) { <text> (còn @p.DaysToExpiry ngày)</text> }</td>
+                <td><span class="badge bg-@css">@txt</span></td>
+            </tr>
+        }
+        @if (Model.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-4">Không có hợp đồng.</td></tr> }
+        </tbody>
+    </table>
+</div></div>

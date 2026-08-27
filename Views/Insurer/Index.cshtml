@@ -1,0 +1,21 @@
+@model List<Insurer>
+@{ ViewData["Title"] = "Công ty bảo hiểm"; }
+<div class="row g-3">
+    <div class="col-lg-4"><div class="card"><div class="card-body">
+        <h6 class="fw-bold mb-3">Thêm công ty BH</h6>
+        <form asp-action="Create" method="post">@Html.AntiForgeryToken()
+            <div class="mb-2"><input name="name" class="form-control" placeholder="Tên công ty *" required /></div>
+            <div class="row g-2 mb-3">
+                <div class="col-6"><input name="code" class="form-control" placeholder="Mã" /></div>
+                <div class="col-6"><input name="hotline" class="form-control" placeholder="Hotline" /></div>
+            </div>
+            <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+        </form>
+    </div></div></div>
+    <div class="col-lg-8"><div class="card"><div class="card-body">
+        <table class="table table-hover align-middle"><thead><tr><th>Mã</th><th>Công ty</th><th>Hotline</th></tr></thead><tbody>
+        @foreach (var i in Model) { <tr><td class="fw-semibold">@i.Code</td><td>@i.Name</td><td class="small text-muted">@i.Hotline</td></tr> }
+        @if (Model.Count == 0) { <tr><td colspan="3" class="text-center text-muted py-4">Chưa có công ty BH.</td></tr> }
+        </tbody></table>
+    </div></div></div>
+</div>
