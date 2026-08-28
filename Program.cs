@@ -2,10 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using MiniInsurance.Data;
 using MiniInsurance.Models;
 using MiniInsurance.Services;
+using Serilog;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+FleetObs.ConfigureLogger("miniinsurance");
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 builder.WebHost.UseUrls($"http://0.0.0.0:{Environment.GetEnvironmentVariable("PORT") ?? "8080"}");
 
 var conn = Environment.GetEnvironmentVariable("CONNECTION_STRING")
@@ -17,11 +20,14 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 });
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IInsuranceService, InsuranceService>();
+builder.Services.AddFleetObs();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
     await Seeder.SeedAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+
+app.UseFleetObs();
 
 app.Use(async (ctx, next) =>
 {
