@@ -108,7 +108,8 @@ public class InsuranceService(AppDbContext db) : IInsuranceService
         var policies = await db.Policies.ToListAsync();
         var claims = await db.Claims.ToListAsync();
         var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-        var premium = await db.Receipts.Where(r => r.PaidAt >= monthStart).SumAsync(r => (decimal?)r.Amount) ?? 0;
+        // SQLite không SUM decimal server-side → materialize rồi cộng client-side.
+        var premium = (await db.Receipts.Where(r => r.PaidAt >= monthStart).Select(r => r.Amount).ToListAsync()).Sum();
         var byType = policies.GroupBy(p => p.Type).Select(g => (g.Key, g.Count())).ToList();
         return new InsDash(
             policies.Count(p => p.Status == PolicyStatus.Active),

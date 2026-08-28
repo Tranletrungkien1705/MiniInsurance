@@ -6,9 +6,14 @@ using MiniInsurance.Services;
 
 namespace MiniInsurance.Controllers;
 
-public class HomeController(IInsuranceService svc) : Controller
+public class HomeController : Controller
 {
-    public async Task<IActionResult> Index() { ViewBag.Dash = await svc.DashboardAsync(); return View(); }
+    public IActionResult Index() => Redirect("/index.html");   // SPA React ở "/"
+}
+
+public class LegacyController(IInsuranceService svc) : Controller
+{
+    public async Task<IActionResult> Index() { ViewBag.Dash = await svc.DashboardAsync(); return View("~/Views/Home/Index.cshtml"); }
 }
 
 public class InsurerController(IInsuranceService svc) : Controller
