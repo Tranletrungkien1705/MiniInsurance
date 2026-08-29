@@ -81,6 +81,20 @@ app.MapPost("/api/ext/auto-policy", async (AutoPolicyDto dto, IInsuranceService 
     return Results.Ok(new { policyId = id, code = p!.Code, insurer = insurers[0].Name, premium = p.Premium, status = Ui.Status(p.Status).text });
 });
 
+// API tích hợp: MiniService lập yêu cầu bồi thường cho xe còn bảo hiểm (sửa sau tai nạn).
+app.MapPost("/api/ext/claim", async (ExtClaimDto dto, IInsuranceService svc) =>
+{
+    if (string.IsNullOrWhiteSpace(dto.Plate)) return Results.BadRequest(new { error = "Cần biển số." });
+    var p = await svc.GetByPlateAsync(dto.Plate);
+    if (p == null) return Results.NotFound(new { error = "Xe chưa có hợp đồng bảo hiểm." });
+    if (p.Status != PolicyStatus.Active) return Results.BadRequest(new { error = "Hợp đồng chưa/không còn hiệu lực.", status = Ui.Status(p.Status).text });
+    if (dto.Amount <= 0) return Results.BadRequest(new { error = "Số tiền yêu cầu phải > 0." });
+    var incident = DateTime.TryParse(dto.IncidentDate, out var d) ? d : DateTime.Today;
+    var id = await svc.FileClaimAsync(p.Id, incident, dto.Description ?? "Sửa chữa sau va chạm", dto.Amount);
+    var c = (await svc.GetPolicyAsync(p.Id))!.Claims.First(x => x.Id == id);
+    return Results.Ok(new { claimId = id, code = c.Code, policyCode = p.Code, status = Ui.Claim(c.Status).text, amount = c.ClaimAmount });
+});
+
 app.MapPost("/api/orgs/register", async (RegisterOrgDto dto, AppDbContext db) =>
 {
     if (string.IsNullOrWhiteSpace(dto.Name)) return Results.BadRequest(new { error = "Cần Name." });
@@ -94,3 +108,4 @@ app.Run();
 
 record RegisterOrgDto(string Name);
 record AutoPolicyDto(string Plate, string? VehicleModel, string? CustomerName, string? CustomerPhone, decimal SumInsured);
+record ExtClaimDto(string Plate, decimal Amount, string? Description, string? IncidentDate);
