@@ -74,8 +74,11 @@ app.MapPost("/api/ext/auto-policy", async (AutoPolicyDto dto, IInsuranceService 
         SumInsured = sum, Premium = Math.Round(sum * 0.0015m, 0),   // ~0.15% TNDS
         StartDate = DateTime.Today, EndDate = DateTime.Today.AddYears(1)
     });
+    var p0 = await svc.GetPolicyAsync(id);
+    // TNDS bắt buộc đóng ngay khi mua xe → ghi biên nhận đủ phí để kích hoạt hợp đồng.
+    await svc.AddReceiptAsync(id, p0!.Premium, "Tiền mặt");
     var p = await svc.GetPolicyAsync(id);
-    return Results.Ok(new { policyId = id, code = p!.Code, insurer = insurers[0].Name, premium = p.Premium });
+    return Results.Ok(new { policyId = id, code = p!.Code, insurer = insurers[0].Name, premium = p.Premium, status = Ui.Status(p.Status).text });
 });
 
 app.MapPost("/api/orgs/register", async (RegisterOrgDto dto, AppDbContext db) =>
