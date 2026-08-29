@@ -59,6 +59,25 @@ app.MapGet("/api/policy", async (string plate, IInsuranceService svc) =>
     });
 });
 
+// API tích hợp: MiniShowroom giao xe → tự lập bảo hiểm TNDS bắt buộc cho xe mới (chọn công ty BH đầu tiên).
+app.MapPost("/api/ext/auto-policy", async (AutoPolicyDto dto, IInsuranceService svc) =>
+{
+    var insurers = await svc.InsurersAsync();
+    if (insurers.Count == 0) return Results.BadRequest(new { error = "Chưa có công ty bảo hiểm." });
+    if (string.IsNullOrWhiteSpace(dto.Plate)) return Results.BadRequest(new { error = "Cần biển số." });
+    var sum = dto.SumInsured > 0 ? dto.SumInsured : 500_000_000;
+    var id = await svc.CreatePolicyAsync(new Policy
+    {
+        CustomerName = dto.CustomerName ?? "Khách mua xe", CustomerPhone = dto.CustomerPhone,
+        VehiclePlate = dto.Plate.Trim(), VehicleModel = dto.VehicleModel,
+        InsurerId = insurers[0].Id, Type = InsuranceType.CompulsoryTPL,
+        SumInsured = sum, Premium = Math.Round(sum * 0.0015m, 0),   // ~0.15% TNDS
+        StartDate = DateTime.Today, EndDate = DateTime.Today.AddYears(1)
+    });
+    var p = await svc.GetPolicyAsync(id);
+    return Results.Ok(new { policyId = id, code = p!.Code, insurer = insurers[0].Name, premium = p.Premium });
+});
+
 app.MapPost("/api/orgs/register", async (RegisterOrgDto dto, AppDbContext db) =>
 {
     if (string.IsNullOrWhiteSpace(dto.Name)) return Results.BadRequest(new { error = "Cần Name." });
@@ -71,3 +90,4 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 app.Run();
 
 record RegisterOrgDto(string Name);
+record AutoPolicyDto(string Plate, string? VehicleModel, string? CustomerName, string? CustomerPhone, decimal SumInsured);
