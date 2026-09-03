@@ -95,6 +95,23 @@ app.MapPost("/api/ext/claim", async (ExtClaimDto dto, IInsuranceService svc) =>
     return Results.Ok(new { claimId = id, code = c.Code, policyCode = p.Code, status = Ui.Claim(c.Status).text, amount = c.ClaimAmount });
 });
 
+// Import công ty bảo hiểm thật từ Mst_InsuranceCompany (SQL nguồn 2010.HTC). Dedupe theo Code.
+app.MapPost("/api/import/insurers", async (List<ImportInsurerDto> rows, AppDbContext db) =>
+{
+    if (rows is null || rows.Count == 0) return Results.BadRequest(new { error = "Không có dữ liệu import." });
+    int added = 0, skipped = 0;
+    foreach (var r in rows)
+    {
+        if (string.IsNullOrWhiteSpace(r.InsCompanyCode) || string.IsNullOrWhiteSpace(r.InsCompanyName)) { skipped++; continue; }
+        var code = r.InsCompanyCode.Trim();
+        if (await db.Insurers.AnyAsync(i => i.Code == code)) { skipped++; continue; }
+        db.Insurers.Add(new Insurer { Code = code, Name = r.InsCompanyName.Trim() });
+        added++;
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { added, skipped, total = rows.Count });
+});
+
 app.MapPost("/api/orgs/register", async (RegisterOrgDto dto, AppDbContext db) =>
 {
     if (string.IsNullOrWhiteSpace(dto.Name)) return Results.BadRequest(new { error = "Cần Name." });
@@ -107,5 +124,6 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 app.Run();
 
 record RegisterOrgDto(string Name);
+record ImportInsurerDto(string? InsCompanyCode, string? InsCompanyName);
 record AutoPolicyDto(string Plate, string? VehicleModel, string? CustomerName, string? CustomerPhone, decimal SumInsured);
 record ExtClaimDto(string Plate, decimal Amount, string? Description, string? IncidentDate);
