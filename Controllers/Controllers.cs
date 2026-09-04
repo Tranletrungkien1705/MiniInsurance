@@ -87,8 +87,12 @@ public class PolicyController(IInsuranceService svc) : Controller
     public async Task<IActionResult> FileClaim(int id, DateTime incidentDate, string description, decimal claimAmount)
     {
         if (string.IsNullOrWhiteSpace(description)) { TempData["Error"] = "Cần mô tả sự cố."; return RedirectToAction(nameof(Detail), new { id }); }
-        await svc.FileClaimAsync(id, incidentDate == default ? DateTime.Today : incidentDate, description, claimAmount);
-        TempData["Success"] = "Đã khai báo yêu cầu bồi thường.";
+        try
+        {
+            await svc.FileClaimAsync(id, incidentDate == default ? DateTime.Today : incidentDate, description, claimAmount);
+            TempData["Success"] = "Đã khai báo yêu cầu bồi thường.";
+        }
+        catch (Exception e) when (e is KeyNotFoundException or InvalidOperationException) { TempData["Error"] = e.Message; }
         return RedirectToAction(nameof(Detail), new { id });
     }
 

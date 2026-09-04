@@ -84,8 +84,13 @@ public class ApiV1Controller(IInsuranceService svc, ICache cache, ITenantContext
     [HttpPost("policies/{id:int}/claims")]
     public async Task<IActionResult> FileClaim(int id, [FromBody] ClaimReq r)
     {
-        var cid = await svc.FileClaimAsync(id, r.IncidentDate == default ? DateTime.Today : r.IncidentDate, r.Description ?? "", r.ClaimAmount);
-        return Ok(new { id = cid });
+        try
+        {
+            var cid = await svc.FileClaimAsync(id, r.IncidentDate == default ? DateTime.Today : r.IncidentDate, r.Description ?? "", r.ClaimAmount);
+            return Ok(new { id = cid });
+        }
+        catch (KeyNotFoundException) { return NotFound(new { error = "Không tìm thấy hợp đồng." }); }
+        catch (InvalidOperationException e) { return BadRequest(new { error = e.Message }); }
     }
 
     [HttpPost("claims/{id:int}/status")]

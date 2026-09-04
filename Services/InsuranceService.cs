@@ -81,6 +81,12 @@ public class InsuranceService(AppDbContext db) : IInsuranceService
 
     public async Task<int> FileClaimAsync(int policyId, DateTime incidentDate, string desc, decimal amount)
     {
+        // Guard trước đây CHỈ tồn tại ở endpoint /api/ext/claim (Program.cs) chứ không nằm trong service —
+        // /api/v1/policies/{id}/claims gọi thẳng service nên bỏ qua guard hoàn toàn (đã xác nhận bug thật:
+        // claim 100tr tạo thành công trên hợp đồng "Chờ đóng phí" chưa Active). Chuyển guard vào service để mọi caller đều được bảo vệ.
+        var p = await db.Policies.FirstOrDefaultAsync(x => x.Id == policyId) ?? throw new KeyNotFoundException("Không tìm thấy hợp đồng.");
+        if (p.Status != PolicyStatus.Active) throw new InvalidOperationException("Hợp đồng chưa/không còn hiệu lực — không thể lập yêu cầu bồi thường.");
+        if (amount <= 0) throw new InvalidOperationException("Số tiền yêu cầu phải > 0.");
         var c = new Claim { PolicyId = policyId, IncidentDate = incidentDate, Description = desc, ClaimAmount = amount,
             Code = $"BT{DateTime.Now:yyMM}-{await db.Claims.CountAsync() + 1:D3}" };
         db.Claims.Add(c); await db.SaveChangesAsync(); return c.Id;
